@@ -1,14 +1,25 @@
 package com.example.myapplication;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Looper;
+import android.view.View;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.database.DataSnapshot;
@@ -21,9 +32,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private GoogleMap mMap;
     FirebaseDatabase database = FirebaseDatabase.getInstance();
-//    DatabaseReference myRef = database.getReference("message2");
-    DatabaseReference myRef2 = database.getReference("CurrentLocation/");
+    DatabaseReference docLat = database.getReference("CurrentLocation2/Doctor/Latitude");
+    DatabaseReference docLong = database.getReference("CurrentLocation2/Doctor/Longitude");
+    DatabaseReference myRef2 = database.getReference("CurrentLocation2/");
     private Double plat, plong, dlat, dlong;
+    private static final int REQUEST_CODE_LOCATION_PERMISSION = 1;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,9 +48,55 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
+        getCurrentLocation();
         // Write a message to the database
 //        myRef.setValue("Hello, World!!!!!!!!!!!");
 
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CODE_LOCATION_PERMISSION && grantResults.length > 0) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getCurrentLocation();
+            } else {
+                Toast.makeText(this, "Permission Denied!", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void getCurrentLocation() {
+//        pbar.setVisibility(View.VISIBLE);
+        final LocationRequest locationRequest = new LocationRequest();
+        locationRequest.setInterval(10000);
+        locationRequest.setFastestInterval(3000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE_LOCATION_PERMISSION);
+        }
+
+        LocationServices.getFusedLocationProviderClient(MapsActivity.this)
+                .requestLocationUpdates(locationRequest, new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        super.onLocationResult(locationResult);
+                        LocationServices.getFusedLocationProviderClient(MapsActivity.this)
+                                .removeLocationUpdates(this);
+                        if (locationResult != null && locationResult.getLocations().size() > 0) {
+                            int latestLocationIndex = locationResult.getLocations().size() - 1;
+                            double latitude = locationResult.getLocations().get(latestLocationIndex).getLatitude();
+                            double longitude = locationResult.getLocations().get(latestLocationIndex).getLongitude();
+                            Toast.makeText(MapsActivity.this, String.format("Latitude: %s\nLongitude: %s", latitude,longitude), Toast.LENGTH_SHORT).show();
+                            docLat.setValue(latitude);
+                            docLong.setValue(longitude);
+                        }else {
+
+                        }
+                    }
+                }, Looper.getMainLooper());
     }
 
 
@@ -61,7 +121,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.clear();
                 LatLng doc = new LatLng(dlat, dlong);
                 LatLng pat = new LatLng(plat, plong);
-                mMap.addMarker(new MarkerOptions().position(doc).title("Doctor's Location"));
+                mMap.addMarker(new MarkerOptions().position(doc).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)).title("Doctor's Location"));
                 mMap.addMarker(new MarkerOptions().position(pat).title("Patient's Location"));
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(doc, 11));
 
