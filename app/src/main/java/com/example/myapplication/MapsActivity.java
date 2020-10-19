@@ -15,18 +15,23 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+
+import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -39,8 +44,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final int REQUEST_CODE_LOCATION_PERMISSION = 1;
     Handler handler = new Handler();
     Runnable runnable;
-    int delay = 5000;
-
+    int delay = 15000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,7 +65,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         handler.postDelayed(runnable = new Runnable() {
             public void run() {
                 handler.postDelayed(runnable, delay);
-                Toast.makeText(MapsActivity.this, "This method is run every 5 seconds", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MapsActivity.this, "This method is run every 15 seconds", Toast.LENGTH_SHORT).show();
                 getCurrentLocation();
             }
         }, delay);
@@ -88,9 +92,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-
     private void getCurrentLocation() {
-//        pbar.setVisibility(View.VISIBLE);
         final LocationRequest locationRequest = new LocationRequest();
         locationRequest.setInterval(10000);
         locationRequest.setFastestInterval(3000);
@@ -114,8 +116,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //                            Toast.makeText(MapsActivity.this, String.format("Latitude: %s\nLongitude: %s", latitude,longitude), Toast.LENGTH_SHORT).show();
                             docLat.setValue(latitude);
                             docLong.setValue(longitude);
-                        }else {
-
                         }
                     }
                 }, Looper.getMainLooper());
@@ -144,9 +144,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mMap.getUiSettings().setMapToolbarEnabled(false);
                 LatLng doc = new LatLng(dlat, dlong);
                 LatLng pat = new LatLng(plat, plong);
-                mMap.addMarker(new MarkerOptions().position(doc).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)).title("Doctor's Location"));
-                mMap.addMarker(new MarkerOptions().position(pat).title("Patient's Location"));
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(doc, 11));
+//                mMap.addMarker(new MarkerOptions().position(doc).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)).title("Doctor's Location"));
+//                mMap.addMarker(new MarkerOptions().position(pat).title("Patient's Location"));
+//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(doc, 11));
+
+                ArrayList<Marker> markersList = new ArrayList<>();
+                LatLngBounds.Builder builder;
+                final CameraUpdate cu;
+
+                Marker doctor = mMap.addMarker(new MarkerOptions().position(doc).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)).title("Doctor's Location"));
+                Marker patient = mMap.addMarker(new MarkerOptions().position(pat).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)).title("Patient's Location"));
+                /*Put all the markers into arraylist*/
+                markersList.add(doctor);
+                markersList.add(patient);
+                /*create for loop for get the latLngbuilder from the marker list*/
+                builder = new LatLngBounds.Builder();
+                for (Marker m : markersList) {
+                    builder.include(m.getPosition());
+                }
+                /*initialize the padding for map boundary*/
+//                int padding = 50;
+                int padding = 200;
+                /*create the bounds from latlngBuilder to set into map camera*/
+                LatLngBounds bounds = builder.build();
+                /*create the camera with bounds and padding to set into map*/
+                cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
+                /*call the map call back to know map is loaded or not*/
+                mMap.setOnMapLoadedCallback(new GoogleMap.OnMapLoadedCallback() {
+                    @Override
+                    public void onMapLoaded() {
+                        /*set move zoom camera into map*/
+                        mMap.moveCamera(cu);
+                    }
+                });
 
             }
 
