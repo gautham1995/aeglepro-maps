@@ -3,8 +3,8 @@ package com.example.myapplication;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
-import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -37,6 +37,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     DatabaseReference myRef2 = database.getReference("CurrentLocation2/");
     private Double plat, plong, dlat, dlong;
     private static final int REQUEST_CODE_LOCATION_PERMISSION = 1;
+    Handler handler = new Handler();
+    Runnable runnable;
+    int delay = 5000;
 
 
     @Override
@@ -49,9 +52,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         assert mapFragment != null;
         mapFragment.getMapAsync(this);
         getCurrentLocation();
-        // Write a message to the database
-//        myRef.setValue("Hello, World!!!!!!!!!!!");
 
+
+    }
+
+    @Override
+    protected void onResume() {
+        handler.postDelayed(runnable = new Runnable() {
+            public void run() {
+                handler.postDelayed(runnable, delay);
+                Toast.makeText(MapsActivity.this, "This method is run every 5 seconds", Toast.LENGTH_SHORT).show();
+                getCurrentLocation();
+            }
+        }, delay);
+        super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(runnable); //stop handler when activity not visible super.onPause();
     }
 
 
@@ -66,6 +86,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
     }
+
+
 
     private void getCurrentLocation() {
 //        pbar.setVisibility(View.VISIBLE);
@@ -89,7 +111,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                             int latestLocationIndex = locationResult.getLocations().size() - 1;
                             double latitude = locationResult.getLocations().get(latestLocationIndex).getLatitude();
                             double longitude = locationResult.getLocations().get(latestLocationIndex).getLongitude();
-                            Toast.makeText(MapsActivity.this, String.format("Latitude: %s\nLongitude: %s", latitude,longitude), Toast.LENGTH_SHORT).show();
+//                            Toast.makeText(MapsActivity.this, String.format("Latitude: %s\nLongitude: %s", latitude,longitude), Toast.LENGTH_SHORT).show();
                             docLat.setValue(latitude);
                             docLong.setValue(longitude);
                         }else {
@@ -119,6 +141,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 dlong = dataSnapshot.child("Doctor").child("Longitude").getValue(Double.class);
 
                 mMap.clear();
+                mMap.getUiSettings().setMapToolbarEnabled(false);
                 LatLng doc = new LatLng(dlat, dlong);
                 LatLng pat = new LatLng(plat, plong);
                 mMap.addMarker(new MarkerOptions().position(doc).icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)).title("Doctor's Location"));
